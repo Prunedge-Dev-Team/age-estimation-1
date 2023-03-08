@@ -1,0 +1,232 @@
+# data-preprocessing for CACD 
+# Reference: 
+# https://github.com/shamangary/Keras-MORPH2-age-estimation/blob/master/TYY_MORPH_create_db.py
+import numpy as np
+import cv2
+import scipy.io
+import imageio as io
+import argparse
+from tqdm import tqdm
+import os
+from os import listdir
+from os.path import isfile, join
+import sys
+import dlib
+from moviepy.editor import *
+
+# def get_dic(data_list, img_path):
+#     # split into different individuals
+#     data_dic = {}
+#     for idx in range(len(data_list)):
+#         file_name = data_list[idx][:-4]
+#         annotation = file_name.split('_')
+#         age = float(annotation[0])
+#         identity = ''
+#         for i in range(1, len(annotation) - 1):
+#             identity += annotation[i] + ' '
+#         file_path = os.path.join(img_path, data_list[idx])
+#         assert os.path.exists(file_path), 'Image not found!'
+#         if identity not in data_dic:
+#             temp = {'path':[file_path], 
+#                     'age_list':[age]}
+#             data_dic[identity] = temp
+#         else:
+#             data_dic[identity]['path'].append(file_path)
+#             data_dic[identity]['age_list'].append(age)     
+#     return data_dic
+
+# import shutil
+# def split_dataset(src_folder, dst_folder):
+#     # Get a list of all files in the source folder
+#     files = os.listdir(src_folder)
+#     files = sorted(files)
+   
+#     # Split the list of files into train, val, and test sets
+#     train_files = files[:-12]
+#     # val_files = files[num_train:num_train + num_val]
+#     test_files = files[-11:]
+
+#     # Copy the files to the corresponding destination folders
+#     for file in train_files:
+#         shutil.copy2(os.path.join(src_folder, file), os.path.join(dst_folder, "train", file))
+#     # for file in val_files:
+#         # shutil.copy2(os.path.join(src_folder, file), os.path.join(dst_folder, "val", file))
+#     for file in test_files:
+#         shutil.copy2(os.path.join(src_folder, file), os.path.join(dst_folder, "test", file))
+
+# src_folder = "/Users/boboye/Desktop/FGNET/images"
+# dst_folder = "/Users/boboye/Desktop/dest"
+# # train_ratio = 0.6
+# # val_ratio = 0.2
+# # test_ratio = 0.2
+
+# # split_dataset(src_folder, dst_folder, train_ratio, val_ratio, test_ratio)
+# split_dataset(src_folder, dst_folder)
+
+def get_dic(data_list, img_path):
+    # split into different individuals
+    data_dic = {}
+    for idx in range(len(data_list)):
+        file_name = data_list[idx][:-4]
+        index_of_A = file_name.split("A")
+        age = float(index_of_A[1][:2])
+        identity = index_of_A[0]
+        file_path = os.path.join(img_path, data_list[idx])
+        assert os.path.exists(file_path), 'Image not found!'
+        if identity not in data_dic:
+            temp = {'path':[file_path], 
+                    'age_list':[age]}
+            data_dic[identity] = temp
+        else:
+            data_dic[identity]['path'].append(file_path)
+            data_dic[identity]['age_list'].append(age)     
+    return data_dic
+
+def get_counts(data_dic):
+    SUM = 0
+    for key in data_dic:
+        SUM += len(data_dic[key]['path'])
+    return SUM
+
+def get_data(img_path):
+    # pre-process the data for CACD
+    train_list = np.load('../data/FGNET_split/train_fgnet.npy', allow_pickle=True)
+    #valid_list = np.load('../data/CACD_split/valid.npy', allow_pickle=True)
+    test_list = np.load('../data/FGNET_split/test_fgnet.npy', allow_pickle=True)
+    train_dic = get_dic(train_list, img_path)
+    print('Training images: %d'%get_counts(train_dic))
+    # valid_dic = get_dic(valid_list, img_path)
+    # print('Validation images: %d'%get_counts(valid_dic))
+    test_dic  = get_dic(test_list, img_path)
+    print('Testing images: %d'%get_counts(test_dic))
+    # return train_dic, valid_dic, test_dic
+    return train_dic, test_dic
+
+def warp_im(im, M, dshape):
+    output_im = np.zeros(dshape, dtype=im.dtype)
+    cv2.warpAffine(im,
+                   M[:2],
+                   (dshape[1], dshape[0]),
+                   dst=output_im,
+                   borderMode=cv2.BORDER_TRANSPARENT,
+                   flags=cv2.WARP_INVERSE_MAP)
+    return output_im
+
+def transformation_from_points(points1, points2):
+    """
+    Return an affine transformation [s * R | T] such that:
+        sum ||s*R*p1,i + T - p2,i||^2
+    is minimized.
+    """
+    # Solve the procrustes problem by subtracting centroids, scaling by the
+    # standard deviation, and then using the SVD to calculate the rotation. See
+    # the following for more details:
+    #   https://en.wikipedia.org/wiki/Orthogonal_Procrustes_problem
+
+    points1 = np.matrix(points1).astype(np.float64)
+    points2 = np.matrix(points2).astype(np.float64)
+
+    c1 = np.mean(points1, axis=0)
+    c2 = np.mean(points2, axis=0)
+    points1 -= c1
+    points2 -= c2
+
+    s1 = np.std(points1)
+    s2 = np.std(points2)
+    points1 /= s1
+    points2 /= s2
+
+    U, S, Vt = np.linalg.svd(points1.T * points2)
+
+    # The R we seek is in fact the transpose of the one given by U * Vt. This
+    # is because the above formulation assumes the matrix goes on the right
+    # (with row vectors) where as our solution requires the matrix to be on the
+    # left (with column vectors).
+    R = (U * Vt).T
+
+    return np.vstack([np.hstack(((s2 / s1) * R,
+                                       c2.T - (s2 / s1) * R * c1.T)),
+                         np.matrix([0., 0., 1.])])
+
+def normalize(points): #landmarks
+    center = points.mean(axis = 0)
+    deviation = points - center
+    norm_fac = np.abs(deviation).max()
+    normalized_lm = deviation/norm_fac
+    return normalized_lm
+
+def get_points(img_name, args):
+    file_path = args.annotation + img_name[:-4] + '.pts'
+    annotation = open(file_path, 'r').read().splitlines()
+    num_lm = len(annotation)  
+    points =  np.matrix([[float(annotation[i].split(' ')[0]), 
+                       float(annotation[i].split(' ')[1])] 
+                        for i in range(num_lm)])
+    normalized_lm = normalize(points)
+    return (points, normalized_lm)
+
+
+def get_args():
+    parser = argparse.ArgumentParser(description="This script cleans-up noisy labels "
+                                                 "and creates database for training.",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--output", "-o", type=str,
+                        # help="path to output database mat file", default='../data/CACD2000_processed')
+                        help="path to output database mat file", default= '../data/FGNET/images')
+    parser.add_argument("--img_size", type=int, default=256,
+                        help="output image size")
+    parser.add_argument("-annotation", type=str,
+                        # help="path to .landmark files", default='../data/CACD_landmark/landmark/')    
+                        help="path to .point files", default='../data/FGNET/points/')
+    args = parser.parse_args()
+    return args
+
+def get_mean_face(point_list, img_size):
+    SUM = normalize(point_list[0][0])
+    for i in range(1, len(point_list)):
+        SUM += normalize(point_list[i][0])
+    normalized_mean_face = SUM/len(point_list)
+    face_size = img_size*0.3
+    return normalized_mean_face*face_size + 0.5*img_size
+
+def process_split_file():
+    file_path = '/home/nicholas/Documents/Project/DRF_Age_Estimation/data/CACD_split/'
+    train = open(file_path + 'train.txt', 'r').read().splitlines()
+    #valid = open(file_path + 'valid.txt', 'r').read().splitlines()
+    test = open(file_path + 'test.txt', 'r').read().splitlines()    
+    #return train, valid, test
+    return train, test
+
+def main():
+    args = get_args()
+    output_path = args.output
+    img_size = args.img_size
+
+    #mypath = '../data/CACD2000'
+    mypath = '../data/FGNET/images'
+    isPlot = False
+    onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath, f))]
+#    point_list = []
+#    for i in tqdm(range(len(onlyfiles))):
+#        point_list.append(get_points(onlyfiles[i], args))
+
+    # point_ref = np.matrix(np.load('../data/CACD_mean_face.npy', allow_pickle=True))
+    
+    # Points used to line up the images.
+    ALIGN_POINTS = list(range(16))
+
+    for i in tqdm(range(len(onlyfiles))):
+
+        img_name = onlyfiles[i]        
+        input_img = cv2.imread(mypath+'/'+img_name)
+        input_img = cv2.cvtColor(input_img, cv2.COLOR_BGR2RGB)
+        img_h, img_w, _ = np.shape(input_img)
+
+        point = get_points(img_name, args)[0]
+        M = transformation_from_points(point_ref[ALIGN_POINTS], 
+                                       point[ALIGN_POINTS])
+        input_img = warp_im(input_img, M, (256, 256, 3))
+        io.imsave(args.output +'/'+ img_name, input_img)
+
+if __name__ == '__main__':
+    main()
