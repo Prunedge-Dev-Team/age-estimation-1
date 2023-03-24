@@ -106,24 +106,24 @@ class FacialAgeDataset(torch.utils.data.Dataset):
 
 def prepare_db(opt):
     # Prepare a list of datasets for training and evaluation
-    train_list = []
-    eval_list = []
+    # train_list = []
+    # eval_list = []
     
     if opt.dataset_name == "FGNET":
         # not released for now
-        eval_dic = np.load('../data/FGNET_split/test_FGNET.npy', allow_pickle=True).item()
+        data_dic = np.load('../data/FGNET_split/test_FGNET.npy', allow_pickle=True).item()
         
-        if opt.fgnet_train:
-            # use the official training set for training
-            train_dic = np.load('../data/FGNET_split/train_FGNET.npy', allow_pickle=True).item()
-            logging.info('Preparing FGNET dataset (training with the training set).')
-        # else:
-        #     # use the official evaluation set for training
-        #     train_dic = np.load('../data/FGNET_split/valid_cacd_processed.npy', allow_pickle=True).item()
-        #     logging.info('Preparing FGNET dataset (training with the validation set).')
-        train_list.append(FacialAgeDataset(train_dic, opt, 'train'))
-        eval_list.append(FacialAgeDataset(eval_dic, opt, 'eval'))
-        return {'train':train_list, 'eval':eval_list}
+        # if opt.fgnet_train:
+        #     # use the official training set for training
+        #     train_dic = np.load('../data/FGNET_split/train_FGNET.npy', allow_pickle=True).item()
+        #     logging.info('Preparing FGNET dataset (training with the training set).')
+        # # else:
+        # #     # use the official evaluation set for training
+        # #     train_dic = np.load('../data/FGNET_split/valid_cacd_processed.npy', allow_pickle=True).item()
+        # #     logging.info('Preparing FGNET dataset (training with the validation set).')
+        # train_list.append(FacialAgeDataset(train_dic, opt, 'train'))
+        # eval_list.append(FacialAgeDataset(eval_dic, opt, 'eval'))
+        return data_dic
         #raise NotImplementedError
     # elif opt.dataset_name == "CACD":
     #     # testing set
