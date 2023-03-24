@@ -14,55 +14,6 @@ import sys
 import dlib
 from moviepy.editor import *
 
-# def get_dic(data_list, img_path):
-#     # split into different individuals
-#     data_dic = {}
-#     for idx in range(len(data_list)):
-#         file_name = data_list[idx][:-4]
-#         annotation = file_name.split('_')
-#         age = float(annotation[0])
-#         identity = ''
-#         for i in range(1, len(annotation) - 1):
-#             identity += annotation[i] + ' '
-#         file_path = os.path.join(img_path, data_list[idx])
-#         assert os.path.exists(file_path), 'Image not found!'
-#         if identity not in data_dic:
-#             temp = {'path':[file_path], 
-#                     'age_list':[age]}
-#             data_dic[identity] = temp
-#         else:
-#             data_dic[identity]['path'].append(file_path)
-#             data_dic[identity]['age_list'].append(age)     
-#     return data_dic
-
-# import shutil
-# def split_dataset(src_folder, dst_folder):
-#     # Get a list of all files in the source folder
-#     files = os.listdir(src_folder)
-#     files = sorted(files)
-   
-#     # Split the list of files into train, val, and test sets
-#     train_files = files[:-12]
-#     # val_files = files[num_train:num_train + num_val]
-#     test_files = files[-11:]
-
-#     # Copy the files to the corresponding destination folders
-#     for file in train_files:
-#         shutil.copy2(os.path.join(src_folder, file), os.path.join(dst_folder, "train", file))
-#     # for file in val_files:
-#         # shutil.copy2(os.path.join(src_folder, file), os.path.join(dst_folder, "val", file))
-#     for file in test_files:
-#         shutil.copy2(os.path.join(src_folder, file), os.path.join(dst_folder, "test", file))
-
-# src_folder = "/Users/boboye/Desktop/FGNET/images"
-# dst_folder = "/Users/boboye/Desktop/dest"
-# # train_ratio = 0.6
-# # val_ratio = 0.2
-# # test_ratio = 0.2
-
-# # split_dataset(src_folder, dst_folder, train_ratio, val_ratio, test_ratio)
-# split_dataset(src_folder, dst_folder)
-
 def get_dic(data_list, img_path):
     # split into different individuals
     data_dic = {}
@@ -81,6 +32,7 @@ def get_dic(data_list, img_path):
             data_dic[identity]['path'].append(file_path)
             data_dic[identity]['age_list'].append(age)     
     return data_dic
+
 
 def get_counts(data_dic):
     SUM = 0

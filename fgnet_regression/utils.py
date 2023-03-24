@@ -42,7 +42,7 @@ def parse_arg():
     # how many iterations to update prediction in each leaf node 
     parser.add_argument('-label_iter_time', type=int, default=20)
     parser.add_argument('-gpuid', type=int, default=0)
-    parser.add_argument('-epochs', type=int, default=15)
+    parser.add_argument('-epochs', type=int, default=40)
     parser.add_argument('-report_every', type=int, default=40)
     # whether to perform evaluation on evaluation set during training
     parser.add_argument('-eval', type=bool, default=True)

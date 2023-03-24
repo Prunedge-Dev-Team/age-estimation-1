@@ -61,7 +61,7 @@ def train(model, optim, sche, db, opt, exp_id):
         os.makedirs(best_model_dir)
     
     # (For FG-NET only) carry out leave-one-out validation according to the list length 
-    assert len(db['train']) == len(db['eval'])
+    # assert len(db['train']) == len(db['eval'])
     
     # record for each training experiment
     best_MAE = []
